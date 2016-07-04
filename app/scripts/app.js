@@ -66,7 +66,12 @@
     var label = selected.textContent;
     app.getForecast(key, label);
     app.selectedCities.push({key: key, label: label});
-    app.saveSelectedCities();
+    // check if you already following this city
+    if (hasCity(key)) {
+      sweetAlert("Oops...", label + " already exists!", "error");
+    } else {
+      app.saveSelectedCities();
+    }
     app.toggleAddDialog(false);
   });
 
@@ -226,6 +231,16 @@
     ];
     app.saveSelectedCities();
   }
+
+  var cityMap = {};
+  var i = null;
+  for (i = 0; app.selectedCities.length > i; i += 1) {
+    cityMap[app.selectedCities[i].key] = app.selectedCities[i];
+  }
+
+  var hasCity = function(city) {
+    return cityMap[city];
+  };
 
   if('serviceWorker' in navigator) {
     navigator.serviceWorker
