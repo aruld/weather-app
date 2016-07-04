@@ -96,6 +96,20 @@
     }
   };
 
+  app.deleteForecastCard = function(key) {
+    var card = app.visibleCards[key];
+    if (card) {
+      app.container.removeChild(card);
+      delete app.visibleCards[key];
+      var cityIndex = app.selectedCities.map(function (city) {
+        return city.key;
+      }).indexOf(key);
+      // remove the city from array
+      ~cityIndex && app.selectedCities.splice(cityIndex, 1);
+      app.saveSelectedCities();
+    }
+  };
+
   // Updates a weather card with the latest weather forecast. If the card
   // doesn't already exist, it's cloned from the template.
   app.updateForecastCard = function(data) {
@@ -103,10 +117,19 @@
     if (!card) {
       card = app.cardTemplate.cloneNode(true);
       card.classList.remove('cardTemplate');
+      card.querySelector('.city-key').textContent = data.key;
       card.querySelector('.location').textContent = data.label;
       card.removeAttribute('hidden');
       app.container.appendChild(card);
       app.visibleCards[data.key] = card;
+
+      card.querySelector('.mdl-button').addEventListener('click', function() {
+        // Delete the selected city
+        var key = card.querySelector('.city-key').textContent;
+        console.log('[App] Deleting city ' + key);
+        app.deleteForecastCard(key);
+      });
+
     }
     card.querySelector('.description').textContent = data.currently.summary;
     card.querySelector('.date').textContent =

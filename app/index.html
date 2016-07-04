@@ -7,6 +7,9 @@
   <title>Weather PWA</title>
   <link rel="stylesheet" type="text/css" href="styles/inline.css">
   <link rel="stylesheet" type="text/css" href="styles/sweetalert.css" />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
+  <link rel="stylesheet" href="https://code.getmdl.io/1.1.3/material.indigo-pink.min.css">
+  <script defer src="https://code.getmdl.io/1.1.3/material.min.js"></script>
   <link rel="manifest" href="manifest.json">
 
   <!-- Add to home screen for Safari on iOS -->
@@ -28,6 +31,11 @@
 
 <main class="main">
   <div class="card cardTemplate weather-forecast" hidden>
+    <div class="mdl-card__menu">
+      <button class="mdl-button mdl-button--icon mdl-js-button mdl-js-ripple-effect">
+        <i class="material-icons">delete</i>
+      </button>
+    </div>
     <div class="city-key" hidden></div>
     <div class="location"></div>
     <div class="date"></div>
