@@ -64,12 +64,12 @@
     var selected = select.options[select.selectedIndex];
     var key = selected.value;
     var label = selected.textContent;
-    app.getForecast(key, label);
-    app.selectedCities.push({key: key, label: label});
-    // check if you already following this city
+    // check if this city already exists
     if (hasCity(key)) {
       sweetAlert("Oops...", label + " already exists!", "error");
     } else {
+      app.getForecast(key, label);
+      app.selectedCities.push({key: key, label: label});
       app.saveSelectedCities();
     }
     app.toggleAddDialog(false);
@@ -227,7 +227,9 @@
   app.saveSelectedCities = function() {
     var selectedCities = JSON.stringify(app.selectedCities);
     // IMPORTANT: See notes about use of localStorage.
-    localStorage.selectedCities = selectedCities;
+    // localStorage.selectedCities = selectedCities;
+    // Save to indexedDB
+    saveSelectedCities();
   };
 
   /************************************************************************
@@ -240,31 +242,102 @@
    *   Instead, check out IDB (https://www.npmjs.com/package/idb) or
    *   SimpleDB (https://gist.github.com/inexorabletash/c8069c042b734519680c)
    ************************************************************************/
-
-  app.selectedCities = localStorage.selectedCities;
-  if (app.selectedCities) {
-    app.selectedCities = JSON.parse(app.selectedCities);
-    app.selectedCities.forEach(function(city) {
-      app.getForecast(city.key, city.label);
-    });
-  } else {
-    app.updateForecastCard(initialWeatherForecast);
-    app.selectedCities = [
-      {key: initialWeatherForecast.key, label: initialWeatherForecast.label}
-    ];
-    app.saveSelectedCities();
-  }
-
+  // 'global' variable to store reference to the database
+  var db;
   var cityMap = {};
-  var i = null;
-  for (i = 0; app.selectedCities.length > i; i += 1) {
-    cityMap[app.selectedCities[i].key] = app.selectedCities[i];
+
+  // Using indexedDb
+  function openDb() {
+    var req = indexedDB.open("weatherdb", 1);
+    req.onsuccess = function (evt) {
+      // Better use "this" than "req" to get the result to avoid problems with
+      // garbage collection.
+      // db = req.result;
+      db = this.result;
+      console.log("openDb DONE");
+
+      var store = db.transaction("selectedcities", "readonly").objectStore("selectedcities");
+
+      store.get("selectedCities").onsuccess = function(event) {
+        console.log("Result is " + event.target.result);
+        if (event.target.result === undefined) {
+          app.selectedCities = undefined;
+        } else {
+          app.selectedCities = event.target.result;
+        }
+        if (app.selectedCities) {
+          app.selectedCities = JSON.parse(app.selectedCities);
+          app.selectedCities.forEach(function(city) {
+            app.getForecast(city.key, city.label);
+          });
+        } else {
+          app.updateForecastCard(initialWeatherForecast);
+          app.selectedCities = [
+            {key: initialWeatherForecast.key, label: initialWeatherForecast.label}
+          ];
+          saveSelectedCities();
+        }
+      };
+
+    };
+    req.onerror = function (evt) {
+      console.error("openDb:", evt.target.errorCode);
+    };
+    // this method will trigger only once and on subsequent version changes
+    req.onupgradeneeded = function (evt) {
+      console.log("openDb.onupgradeneeded");
+      var store = evt.currentTarget.result.createObjectStore("selectedcities");
+      console.log("Object Stored created");
+      // Use transaction oncomplete to make sure the objectStore creation is
+      // finished before adding data into it.
+      store.transaction.oncomplete = function(event) {
+        console.log("openDb.store.transaction.oncomplete");
+      };
+    };
   }
 
+  function saveSelectedCities() {
+    var selectedCities = JSON.stringify(app.selectedCities);
+    var store = getObjectStore("selectedcities", 'readwrite');
+    var req;
+    try {
+      req = store.put(selectedCities, "selectedCities");
+    } catch (e) {
+      console.log(e);
+    }
+    req.onsuccess = function (evt) {
+      console.log("addSelectedCities successful");
+    };
+    req.onerror = function() {
+      console.error("addSelectedCities error", this.error);
+    };
+  }
+
+  function getSelectedCities() {
+    var store = getObjectStore("selectedcities", 'readonly');
+    store("selectedcities").get("selectedCities").onsuccess = function(event) {
+      console.log("Result is " + event.target.result);
+      return event.target.result;
+    };
+  }
+
+  function getObjectStore(store_name, mode) {
+    var tx = db.transaction(store_name, mode);
+    return tx.objectStore(store_name);
+  }
+
+  openDb();
+
+  // check if the city already exists in the database
   var hasCity = function(city) {
+    var i = null;
+    for (i = 0; app.selectedCities.length > i; i += 1) {
+      cityMap[app.selectedCities[i].key] = app.selectedCities[i];
+    }
     return cityMap[city];
   };
 
+  // service worker registration
   if('serviceWorker' in navigator) {
     navigator.serviceWorker
       .register('./service-worker.js')
